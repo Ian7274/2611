@@ -1,0 +1,124 @@
+import mysql.connector
+
+# 1. Função de Conexão
+def conectar():
+    """
+    Estabelece a conexão com o banco de dados 'loja_livros'.
+    """
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="root",
+        database="loja_livros"  # Nome do banco de dados alterado
+    )
+
+# 2. Função para Criar a Tabela
+def criar_tabela():
+    """
+    Cria a tabela 'produto' se ela não existir.
+    """
+    conexao = conectar()
+    cursor = conexao.cursor()
+    
+    # O nome da tabela foi mantido como 'produto' conforme o exemplo,
+    # mas o contexto é de "Livros".
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS produto (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nome VARCHAR(100),
+            preco DECIMAL(10,2)
+        )
+    """)
+    
+    conexao.commit()
+    cursor.close()
+    conexao.close()
+
+# 3. Função para Inserir um Livro
+def inserir_produto(nome, preco):
+    """
+    Insere um novo livro na tabela 'produto'.
+    """
+    conexao = conectar()
+    cursor = conexao.cursor()
+    
+    sql = "INSERT INTO produto (nome, preco) VALUES (%s, %s)"
+    valores = (nome, preco)
+    
+    cursor.execute(sql, valores)
+    
+    conexao.commit()
+    cursor.close()
+    conexao.close()
+
+# 4. Função para Listar Livros
+def listar_produtos():
+    """
+    Retorna todos os livros cadastrados na tabela 'produto'.
+    """
+    conexao = conectar()
+    cursor = conexao.cursor()
+    
+    cursor.execute("SELECT id, nome, preco FROM produto")
+    
+    resultados = cursor.fetchall()
+    
+    cursor.close()
+    conexao.close()
+    
+    return resultados
+
+# Garante que a tabela seja criada ao iniciar o script
+criar_tabela()
+#
+#
+#
+#
+import streamlit as st
+import db  # Importa o arquivo db.py
+
+# Configuração da página
+st.set_page_config(layout="wide")
+
+# Título da página alterado
+st.title("📚 Loja de Livros Python + MySQL + Streamlit")
+
+# Menu lateral
+menu = st.sidebar.selectbox("Menu", ["Cadastrar Livro", "Listar Livros"])
+
+if menu == "Cadastrar Livro":
+    st.subheader("Cadastrar Novo Livro")
+    
+    # Inputs para o cadastro
+    nome = st.text_input("Nome do Livro")
+    # Usamos st.number_input para garantir que o preço seja um número
+    preco = st.number_input("Preço (R$)", min_value=0.01, format="%.2f")
+    
+    if st.button("Cadastrar"):
+        if nome and preco:
+            # Chama a função de inserção do db.py
+            db.inserir_produto(nome, preco)
+            
+            # Mensagem de sucesso alterada
+            st.success(f"Livro '{nome}' cadastrado com sucesso!")
+        else:
+            st.error("Por favor, preencha todos os campos.")
+
+elif menu == "Listar Livros":
+    # Mensagem da lista alterada
+    st.subheader("Lista de Livros Cadastrados")
+    
+    # Chama a função de listagem do db.py
+    livros = db.listar_produtos()
+    
+    if livros:
+        # Cria um DataFrame para exibir os dados de forma organizada
+        import pandas as pd
+        df = pd.DataFrame(livros, columns=["ID", "Nome", "Preço"])
+        
+        # Formata a coluna de preço para moeda
+        df['Preço'] = df['Preço'].apply(lambda x: f"R$ {x:.2f}".replace('.', ','))
+        
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("Nenhum livro cadastrado ainda.")
